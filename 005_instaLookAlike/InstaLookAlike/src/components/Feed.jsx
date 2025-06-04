@@ -1,48 +1,161 @@
-import { useEffect, useState } from 'react';
+/**
+ * Feed Component
+ * 
+ * Deze component toont een feed van posts van gebruikers.
+ * Het haalt posts op van de backend en toont ze in chronologische volgorde.
+ * 
+ * Functionaliteiten:
+ * 1. Ophalen en weergave van posts
+ * 2. Like/unlike functionaliteit
+ * 3. Commentaar toevoegen
+ * 4. Laadstatus en foutafhandeling
+ * 5. Lege state weergave
+ */
 
-function Feed() {
+import { useState, useEffect } from 'react';
+import Post from './Post';
+
+function Feed({ user }) {
+  // State management voor posts en laadstatus
   const [posts, setPosts] = useState([]);
-  
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState('');
+
+  /**
+   * Effect hook voor het ophalen van posts
+   * Wordt uitgevoerd bij het laden van de component
+   */
   useEffect(() => {
-    fetch('http://localhost:3001/api/posts')
-      .then(res => res.json())
-      .then(data => {
-        if (data.error) {
-          console.error(data.error);
-        } else {
-          setPosts(data);
-        }
-      })
-      .catch((error) => {
-        console.error("Fout bij het ophalen van de posts:", error);
-      });
+    fetchPosts();
   }, []);
 
-  return (
-    <div className="p-4">
-      <h2 className="text-xl font-bold mb-4">Feed</h2>
-      {posts.length === 0 ? (
-        <p>Er zijn nog geen posts!</p>
-      ) : (
-        posts.map((post) => {
-          console.log(post.image_url); // Log de URL voor elke post binnen de map
+  /**
+   * Functie voor het ophalen van posts van de backend
+   * Maakt gebruik van JWT authenticatie voor de API call
+   */
+  const fetchPosts = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch('http://localhost:3001/api/posts', {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
 
-          return (
-            <div key={post.id} className="border p-4 mb-4 rounded shadow">
-              <p><strong>{post.username}</strong> postte:</p>
-              <p>{post.caption}</p>
-              {post.image_url && (
-                <img
-                    src={`http://localhost:3001${post.image_url}`} // Zorg ervoor dat dit pad correct is
-                    alt="Post afbeelding"
-                    className="w-full h-64 object-cover rounded my-2"
-                />
-              )}
-              <p className="text-gray-500 text-sm">Gemaakt op: {new Date(post.created_at).toLocaleString()}</p>
-            </div>
-          );
+      if (!response.ok) {
+        throw new Error('Er is iets misgegaan bij het ophalen van de posts');
+      }
+
+      const data = await response.json();
+      setPosts(data);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  /**
+   * Handler voor het liken/unliken van een post
+   * Herlaadt de posts na de actie
+   * 
+   * @param {number} postId - ID van de post die geliked/unliked wordt
+   */
+  const handleLike = async (postId) => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`http://localhost:3001/api/posts/${postId}/like`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ userId: user.id })
+      });
+
+      if (!response.ok) {
+        throw new Error('Er is iets misgegaan bij het liken van de post');
+      }
+
+      // Update de posts na het liken
+      fetchPosts();
+    } catch (err) {
+      setError(err.message);
+    }
+  };
+
+  /**
+   * Handler voor het toevoegen van een commentaar
+   * Herlaadt de posts na het toevoegen van een commentaar
+   * 
+   * @param {number} postId - ID van de post
+   * @param {string} content - Inhoud van het commentaar
+   */
+  const handleComment = async (postId, content) => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`http://localhost:3001/api/posts/${postId}/comments`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          userId: user.id,
+          content
         })
-      )}
+      });
+
+      if (!response.ok) {
+        throw new Error('Er is iets misgegaan bij het plaatsen van de reactie');
+      }
+
+      // Update de posts na het plaatsen van een reactie
+      fetchPosts();
+    } catch (err) {
+      setError(err.message);
+    }
+  };
+
+  // Laadstatus weergave
+  if (isLoading) {
+    return (
+      <div className="flex justify-center items-center h-64">
+        <div className="text-xl text-gray-600">Posts laden...</div>
+      </div>
+    );
+  }
+
+  // Foutmelding weergave
+  if (error) {
+    return (
+      <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+        {error}
+      </div>
+    );
+  }
+
+  // Lege state weergave
+  if (posts.length === 0) {
+    return (
+      <div className="text-center text-gray-600 mt-8">
+        <p className="text-xl">Nog geen posts beschikbaar</p>
+        <p className="mt-2">Wees de eerste om een post te maken!</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-8">
+      {posts.map(post => (
+        <Post
+          key={post.id}
+          post={post}
+          currentUser={user}
+          onLike={() => handleLike(post.id)}
+          onComment={handleComment}
+        />
+      ))}
     </div>
   );
 }
