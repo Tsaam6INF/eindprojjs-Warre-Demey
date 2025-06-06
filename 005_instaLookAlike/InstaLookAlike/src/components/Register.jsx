@@ -70,13 +70,14 @@ function Register() {
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.message || 'Er is iets misgegaan bij het registreren');
+        throw new Error(data.error || 'Er is iets misgegaan bij het registreren');
       }
 
       // Navigeer naar login pagina na succesvolle registratie
       navigate('/login');
     } catch (err) {
       setError(err.message);
+      console.error('Registratie fout:', err);
     }
   };
 
@@ -125,8 +126,9 @@ function Register() {
                 name="password"
                 type="password"
                 required
+                minLength="6"
                 className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
-                placeholder="Wachtwoord"
+                placeholder="Wachtwoord (minimaal 6 karakters)"
                 value={formData.password}
                 onChange={handleChange}
               />
@@ -138,6 +140,7 @@ function Register() {
                 name="confirmPassword"
                 type="password"
                 required
+                minLength="6"
                 className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-b-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
                 placeholder="Bevestig wachtwoord"
                 value={formData.confirmPassword}
@@ -148,8 +151,8 @@ function Register() {
 
           {/* Foutmelding */}
           {error && (
-            <div className="text-red-500 text-sm text-center">
-              {error}
+            <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative" role="alert">
+              <span className="block sm:inline">{error}</span>
             </div>
           )}
 

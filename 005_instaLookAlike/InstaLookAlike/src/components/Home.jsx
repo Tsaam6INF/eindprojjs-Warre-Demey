@@ -67,16 +67,16 @@ function Home({ user }) {
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({ userId: user.id })
+        }
       });
 
       if (!response.ok) {
-        throw new Error('Er is iets misgegaan bij het liken van de post');
+        const data = await response.json();
+        throw new Error(data.error || 'Er is iets misgegaan bij het liken van de post');
       }
 
       const data = await response.json();
-      
+
       // Update de posts lokaal voor snelle UI feedback
       setPosts(prevPosts => prevPosts.map(post => {
         if (post.id === postId) {
@@ -90,6 +90,7 @@ function Home({ user }) {
       }));
     } catch (err) {
       setError(err.message);
+      console.error('Like fout:', err);
     }
   };
 
@@ -109,20 +110,30 @@ function Home({ user }) {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify({
-          userId: user.id,
-          content
-        })
+        body: JSON.stringify({ content })
       });
 
       if (!response.ok) {
-        throw new Error('Er is iets misgegaan bij het plaatsen van de reactie');
+        const data = await response.json();
+        throw new Error(data.error || 'Er is iets misgegaan bij het plaatsen van de reactie');
       }
 
-      // Herlaad posts om de nieuwe commentaar te tonen
-      fetchPosts();
+      const newComment = await response.json();
+
+      // Update de posts lokaal voor snelle UI feedback
+      setPosts(prevPosts => prevPosts.map(post => {
+        if (post.id === postId) {
+          return {
+            ...post,
+            comments: [...(post.comments || []), newComment],
+            comment_count: (post.comment_count || 0) + 1
+          };
+        }
+        return post;
+      }));
     } catch (err) {
       setError(err.message);
+      console.error('Commentaar fout:', err);
     }
   };
 
